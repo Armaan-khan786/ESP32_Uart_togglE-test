@@ -1,55 +1,55 @@
 @echo off
 setlocal ENABLEEXTENSIONS ENABLEDELAYEDEXPANSION
 
+REM Move to project root
+cd /d C:\Users\a7577\Desktop\esp32-uart-automation2
+
 REM ========= USER CONFIG =========
-set ARDUINO_CLI=arduino-cli
+set ARDUINO_CLI=arduino-cli.exe
 set FQBN=esp32:esp32:esp32
 set PORT_SENDER=COM6
 set PORT_RECEIVER=COM7
 set BAUD=115200
-set LOG_FILE=uart_test.log
 
-REM ========= COMPILE =========
-echo ======================================
-echo Compiling Sender
-echo ======================================
-%ARDUINO_CLI% compile --fqbn %FQBN% sender
-if errorlevel 1 exit /b 1
-
-echo ======================================
-echo Compiling Receiver
-echo ======================================
-%ARDUINO_CLI% compile --fqbn %FQBN% receiver
-if errorlevel 1 exit /b 1
+REM ========= VERIFY CLI =========
+"%ARDUINO_CLI%" version
+if errorlevel 1 (
+    echo ERROR: Arduino CLI not found
+    exit /b 1
+)
 
 REM ========= FLASH SENDER =========
 echo ======================================
 echo Flashing ESP32 Sender
 echo ======================================
-%ARDUINO_CLI% upload -p %PORT_SENDER% --fqbn %FQBN% sender
-if errorlevel 1 exit /b 1
+"%ARDUINO_CLI%" upload -p %PORT_SENDER% --fqbn %FQBN% sender\sender.ino
+if errorlevel 1 (
+    echo ERROR: Sender flash failed
+    exit /b 1
+)
 
 REM ========= FLASH RECEIVER =========
 echo ======================================
 echo Flashing ESP32 Receiver
 echo ======================================
-%ARDUINO_CLI% upload -p %PORT_RECEIVER% --fqbn %FQBN% receiver
-if errorlevel 1 exit /b 1
+"%ARDUINO_CLI%" upload -p %PORT_RECEIVER% --fqbn %FQBN% receiver\receiver.ino
+if errorlevel 1 (
+    echo ERROR: Receiver flash failed
+    exit /b 1
+)
 
 REM ========= WAIT FOR BOOT =========
 echo Waiting for ESP32 boot...
-timeout /t 6 >nul
+timeout /t 5 >nul
 
-REM ========= UART TOGGLE TEST =========
+REM ========= RUN TOGGLE TEST =========
 echo ======================================
 echo Running UART TOGGLE test
 echo ======================================
 
-REM Capture serial output for 10 seconds
-%ARDUINO_CLI% monitor -p %PORT_RECEIVER% -c baudrate=%BAUD% ^
-  > %LOG_FILE% & timeout /t 10 >nul & taskkill /IM arduino-cli.exe /F >nul 2>&1
+"%ARDUINO_CLI%" monitor -p %PORT_RECEIVER% -c baudrate=%BAUD% ^
+ | findstr /C:"UART TOGGLE TEST PASS"
 
-findstr /C:"UART TOGGLE TEST PASS" %LOG_FILE% >nul
 if errorlevel 1 (
     echo ======================================
     echo UART TOGGLE TEST FAILED
